@@ -24,7 +24,6 @@ if __name__ == "__main__":
 
     def clean_dots(chessboard: ChessBoard) -> None:
         global dots
-        print("yes")
         for image_id in dots:
             chessboard.remove_img(image_id)
         
