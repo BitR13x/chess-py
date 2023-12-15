@@ -59,25 +59,36 @@ class ChessBoard:
             "wK": self.scale_img(tk.PhotoImage(file=self.full_path("pieces/white/wK.png"))),
             "wP": self.scale_img(tk.PhotoImage(file=self.full_path("pieces/white/wP.png"))),
 
+            "O": self.scale_img(tk.PhotoImage(file=self.full_path("pieces/greycircle.png"))),
             "-": self.scale_img(tk.PhotoImage(file=self.full_path("pieces/greydot.png")))
         }
 
         self.prepare_board()
-        self.draw_chessboard()
-        self.draw_pieces()
+        self.draw_chessboard(WHITE)
+        self.draw_pieces(WHITE)
 
-    def scale_img(self, image: tk.PhotoImage) -> tk.PhotoImage:
+    def scale_img(self, image: tk.PhotoImage, x=2, y=2) -> tk.PhotoImage:
         #image = image.zoom(2, 2)
-        image = image.subsample(2, 2)
+        image = image.subsample(x, y)
         return image
 
-    def draw_chessboard(self) -> None:
+    def rerender(self, color: str) -> None:
+        self.canvas = tk.Canvas(self.master, width=self.canvas_size, height=self.canvas_size)
+        self.canvas.pack()
+
+        self.draw_chessboard(color)
+        self.draw_pieces(color)
+
+    def draw_chessboard(self, def_color: str) -> None:
         for row in range(self.height):
             for col in range(self.height):
                 x0, y0 = col * self.square_size, row * self.square_size
                 x1, y1 = x0 + self.square_size, y0 + self.square_size
 
-                color = "white" if (row + col) % 2 == 0 else "lightgray"
+                if def_color == WHITE:
+                    color = "white" if (row + col) % 2 == 0 else "lightgray"
+                else:
+                    color = "lightgray" if (row + col) % 2 == 0 else "white"
                 self.canvas.create_rectangle(x0, y0, x1, y1, fill=color)
 
     def full_path(self, relative_path: str) -> str:
@@ -90,13 +101,16 @@ class ChessBoard:
         return self.canvas.create_image(y + self.square_size // 2, x + self.square_size // 2,
                                              image=self.piece_images[piece], anchor=tk.CENTER)
 
-    def draw_pieces(self) -> None:
+    def draw_pieces(self, color: str) -> None:
         for row in range(self.height):
             for col in range(self.height):
                 if is_piece(self.current_board, row, col):
                     
                     piece = self.current_board[row][col]
-                    image_id = self.create_image(row, col, piece.name)
+                    if color == WHITE:
+                        image_id = self.create_image(row, col, piece.name)
+                    else:
+                        image_id = self.create_image(self.height - row, col, piece.name)
                     piece.image_id = image_id
 
                         #.move(image_id, change_in_x, change_in_y)
