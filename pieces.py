@@ -38,8 +38,19 @@ class Piece:
     def make_move(self, x: int, y: int, board: list[list[str]]):
         board[x][y] = self.name
 
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple] | None:
-        return None
+    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple]:
+        valid_moves = []
+        for dx, dy in self.moves:
+            x = self.x + dx
+            y = self.y + dy
+            while self.is_valid(x, y, board, board_size):
+                valid_moves.append((x, y))
+                if self.can_take(x, y, board):
+                    break
+                x += dx
+                y += dy
+        
+        return valid_moves
 
     def update_position(self, x: int, y: int) -> None:
         self.x = x
@@ -87,68 +98,19 @@ class Bishop(Piece):
             (-1, +1)
         ]
 
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple]:
-        valid_moves = []
-        row, col = self.x - 1, self.y + 1
-        while row >= 0 and col < board_size:
-            if board[row][col] != ".":
-                if self.can_take(row, col, board):
-                    valid_moves.append((row, col))
-                break
-
-            valid_moves.append((row, col))
-            row -= 1
-            col += 1
-
-        # Check diagonal moves to the top-left
-        row, col = self.x - 1, self.y - 1
-        while row >= 0 and col >= 0:
-            if board[row][col] != ".":
-                if self.can_take(row, col, board):
-                    valid_moves.append((row, col))
-                break
-
-            valid_moves.append((row, col))
-            row -= 1
-            col -= 1
-
-        # Check diagonal moves to the bottom-right
-        row, col = self.x + 1, self.y + 1
-        while row < board_size and col < board_size:
-            if board[row][col] != ".":
-                if self.can_take(row, col, board):
-                    valid_moves.append((row, col))
-                break
-
-            valid_moves.append((row, col))
-            row += 1
-            col += 1
-
-        # Check diagonal moves to the bottom-left
-        row, col = self.x + 1, self.y - 1
-        while row < board_size and col >= 0:
-            if board[row][col] != ".":
-                if self.can_take(row, col, board):
-                    valid_moves.append((row, col))
-                break
-
-            valid_moves.append((row, col))
-            row += 1
-            col -= 1
-
-        return valid_moves
-
 
 class Rook(Piece):
     def __init__(self, color: chr, image_id: int, x: int, y: int) -> None:
         piece_notation = "R"
         super().__init__(color, piece_notation, image_id, x, y)
+        self.moves = [(1, 0), (-1, 0), (0, 1), (0, -1)]
 
 
 class Queen(Piece):
     def __init__(self, color: chr, image_id: int, x: int, y: int) -> None:
         piece_notation = "Q"
         super().__init__(color, piece_notation, image_id, x, y)
+        self.moves = [(1, 1), (1, -1), (1, 0), (0, 1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
 
 
 class King(Piece):
@@ -201,7 +163,8 @@ class Pawn(Piece):
 
         take_moves = [(1, -1), (1, 1)] if self.color == BLACK else [(-1, -1), (-1, 1)]
         for dx, dy in take_moves:
-            if self.can_take(self.x + dx, self.y + dy, board):
-                valid_moves.append((self.x + dx, self.y + dy))
+            if 0 <= x + dx < board_size and 0 <= y + dy < board_size:
+                if self.can_take(self.x + dx, self.y + dy, board):
+                    valid_moves.append((self.x + dx, self.y + dy))
 
         return valid_moves
