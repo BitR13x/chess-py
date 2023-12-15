@@ -28,7 +28,7 @@ class Piece:
         return False
 
 
-    def can_take(self, x: int, y: int, board: list[list[str]]):
+    def can_take(self, x: int, y: int, board: list[list[str]]) -> bool:
         """ can take a piece?"""
         if is_piece(board, x, y) and board[x][y].color != self.color:
             return True
@@ -117,14 +117,32 @@ class King(Piece):
     def __init__(self, color: chr, image_id: int, x: int, y: int) -> None:
         piece_notation = "K"
         super().__init__(color, piece_notation, image_id, x, y)
+        self.init_position = True
         self.moves = [(1, 1), (1, -1), (1, 0), (0, 1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
 
-    def can_take(self, x: int, y: int, board: list[list[str]]):
+    def can_take(self, x: int, y: int, board: list[list[str]]) -> bool:
         # if protected false
         return super().can_take(x, y, board)
 
+    def castling_moves(self, board: list[list[str]]) -> list[tuple]:
+        castling_moves = []
+        if self.init_position:
+            # ? need to check for valid if smaller table
+            if isinstance(board[self.x][self.y + 3], Rook): # check for rook
+                if board[self.x][self.y + 1] == "." and board[self.x][self.y + 2] == ".":
+                    castling_moves.append((self.x, self.y + 2))
+                
+            if isinstance(board[self.x][self.y - 4], Rook):
+                if board[self.x][self.y - 1] == "." and board[self.x][self.y - 2] == "." \
+                    and board[self.x][self.y + 1] == ".":
+                    castling_moves.append((self.x, self.y - 2))
+
+        return castling_moves
+
     def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple] | None:
         valid_moves = []
+        valid_moves.extend(self.castling_moves(board))
+
         for dx, dy in self.moves:
             x = self.x + dx
             y = self.y + dy
@@ -163,7 +181,7 @@ class Pawn(Piece):
 
         take_moves = [(1, -1), (1, 1)] if self.color == BLACK else [(-1, -1), (-1, 1)]
         for dx, dy in take_moves:
-            if 0 <= x + dx < board_size and 0 <= y + dy < board_size:
+            if 0 <= self.x + dx < board_size and 0 <= self.y + dy < board_size:
                 if self.can_take(self.x + dx, self.y + dy, board):
                     valid_moves.append((self.x + dx, self.y + dy))
 

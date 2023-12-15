@@ -120,6 +120,16 @@ class ChessBoard:
         ax = (x * self.square_size)
         ay = (y * self.square_size)
 
+        if isinstance(piece, King):
+            if (x, y) in piece.castling_moves(self.current_board):
+                if y == piece.y - 2:
+                    self.move_piece(self.current_board[x][piece.y - 4], x, y + 1)
+
+                if y == piece.y + 2:
+                    self.move_piece(self.current_board[x][piece.y + 3], x, y - 1)
+
+            piece.init_position = False
+
         self.current_board[piece.x][piece.y] = "."
         self.canvas.moveto(piece.image_id, ay, ax)
 
