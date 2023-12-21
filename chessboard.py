@@ -63,6 +63,12 @@ class ChessBoard:
             "-": self.scale_img(tk.PhotoImage(file=self.full_path("pieces/greydot.png")))
         }
 
+        self.black_pieces = []
+        self.white_pieces = []
+        
+        self.kings = {"b": King, "w": King}
+        self.white_score, self.black_score = 0, 0
+
         self.prepare_board()
         self.draw_chessboard(WHITE)
         self.draw_pieces(WHITE)
@@ -73,8 +79,7 @@ class ChessBoard:
         return image
 
     def rerender(self, color: str) -> None:
-        self.canvas = tk.Canvas(self.master, width=self.canvas_size, height=self.canvas_size)
-        self.canvas.pack()
+        self.canvas.delete("all")
 
         self.draw_chessboard(color)
         self.draw_pieces(color)
@@ -110,18 +115,21 @@ class ChessBoard:
                     if color == WHITE:
                         image_id = self.create_image(row, col, piece.name)
                     else:
-                        image_id = self.create_image(self.height - row, col, piece.name)
+                        image_id = self.create_image(self.height - row - 1, col, piece.name)
                     piece.image_id = image_id
 
                         #.move(image_id, change_in_x, change_in_y)
                         #.delete(image_id)
 
+
     def move_piece(self, piece: Piece, x: int, y: int) -> None:
         ax = (x * self.square_size)
         ay = (y * self.square_size)
 
+        # castling
         if isinstance(piece, King):
             if (x, y) in piece.castling_moves(self.current_board):
+                #? if piece attacking on some of these squares cannot castle
                 if y == piece.y - 2:
                     self.move_piece(self.current_board[x][piece.y - 4], x, y + 1)
 
@@ -130,15 +138,36 @@ class ChessBoard:
 
             piece.init_position = False
 
+        # move piece and update cord
         self.current_board[piece.x][piece.y] = "."
         self.canvas.moveto(piece.image_id, ay, ax)
 
         piece.update_position(x, y)
         self.current_board[piece.x][piece.y] = piece
 
+        # check attacks on king
+        king = self.kings[BLACK] if piece.color == WHITE else self.kings[WHITE]
+        pieces = self.black_pieces if piece.color == BLACK else self.white_pieces
+        king.attacked_by = None
+        for p in pieces:
+            moves = p.get_moves(self.current_board, self.height, self.kings)
+            print(king.position, p, moves)
+            if king.position in moves:
+                king.attacked_by = p
+                break
+
+        # Pawn
         if isinstance(piece, Pawn):
             piece.init_position = False
 
+    def remove_piece(self, piece: Piece) -> None:
+        self.canvas.delete(piece.image_id)
+        if piece.color == WHITE:
+            self.white_pieces.remove(piece)
+            self.black_score += piece.weight
+        else:
+            self.black_pieces.remove(piece)
+            self.white_score += piece.weight
 
 
     def remove_img(self, image_id: int) -> None:
@@ -151,7 +180,18 @@ class ChessBoard:
             for y in range(len(self.current_board[0])):
                 if self.current_board[x][y] != ".":
                     piece = self.current_board[x][y]
-                    self.current_board[x][y] = self.pieces_notation[piece[1]](piece[0], 0, x, y)
+                    new_piece = self.pieces_notation[piece[1]](piece[0], 0, x, y)
+                    self.current_board[x][y] = new_piece
+
+                    if piece[0] == WHITE:
+                        if isinstance(new_piece, King):
+                            self.kings[WHITE] = new_piece
+                        self.white_pieces.append(new_piece)
+                    else:
+                        if isinstance(new_piece, King):
+                            self.kings[BLACK] = new_piece
+                        self.black_pieces.append(new_piece)
+
         self.print_raw()
 
     def notation(self, piece: str, position: tuple) -> str:

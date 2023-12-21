@@ -32,6 +32,10 @@ if __name__ == "__main__":
     current_piece = None
     possible_moves = []
     def clicked(event: tk.Event) -> None:
+        mychessboard.print_raw()
+        print("WHITE: ", mychessboard.kings[WHITE].attacked_by)
+        print("BLACK: ", mychessboard.kings[BLACK].attacked_by)
+
         x = int(event.y / mychessboard.square_size)
         y = int(event.x / mychessboard.square_size)
         global current_piece, possible_moves, on_move
@@ -46,7 +50,12 @@ if __name__ == "__main__":
             current_piece = myboard[x][y]
 
             clean_dots(mychessboard)
-            possible_moves = myboard[x][y].get_moves(myboard, mychessboard.height)
+            if isinstance(current_piece, King):
+                possible_moves = current_piece.get_valid_moves(mychessboard)
+            else:
+                possible_moves = current_piece.get_moves(myboard,
+                                                         mychessboard.height,
+                                                         mychessboard.kings)
 
             for ax, ay in possible_moves:
                 if is_piece(myboard, ax, ay):
@@ -61,14 +70,13 @@ if __name__ == "__main__":
         if (x, y) in possible_moves and current_piece.color == on_move:
             on_move = WHITE if on_move == BLACK else BLACK
             if is_piece(myboard, x, y):
-                mychessboard.remove_img(myboard[x][y].image_id)
+                mychessboard.remove_piece(myboard[x][y])
 
             mychessboard.move_piece(current_piece, x, y)
             clean_dots(mychessboard)
 
             return
 
-        mychessboard.print_raw()
 
     mychessboard.canvas.bind('<Button-1>', clicked)
 

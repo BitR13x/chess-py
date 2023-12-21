@@ -12,6 +12,7 @@ class Piece:
         self.moves = []
         self.image_id = image_id
 
+
     def __repr__(self) -> str:
         return f"{self.name}" #- {self.position}"
 
@@ -35,22 +36,53 @@ class Piece:
 
         return False
 
-    def make_move(self, x: int, y: int, board: list[list[str]]):
-        board[x][y] = self.name
+    #is_king_under_attack
 
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple]:
+    def is_king_attacked_with_move(self, x: int, y: int, board: list[list[str]], board_size: int, kings):
+        # if attacking piece can now touch king
+        if kings[self.color].attacked_by: #and not isinstance(self.attacked_by, King):
+            if kings[self.color].attacked_by.position == (x, y):
+                return False
+
+            space = (board[x][y], (self.x, self.y))
+            # pretend move piece
+            board[self.x][self.y] = space[0]
+            self.update_position(x, y)
+            board[x][y] = self
+
+
+            if kings[self.color].position in kings[self.color].attacked_by.get_moves(board, board_size, kings):
+                board[x][y] = space[0]
+                self.update_position(space[1][0], space[1][1])
+                board[self.x][self.y] = self
+
+                return True
+            else:
+                board[x][y] = space[0]
+                self.update_position(space[1][0], space[1][1])
+                board[self.x][self.y] = self
+
+                return False
+        else:
+            return False
+
+    def get_moves(self, board: list[list[str]], board_size: int, kings) -> list[tuple]:
         valid_moves = []
         for dx, dy in self.moves:
             x = self.x + dx
             y = self.y + dy
             while self.is_valid(x, y, board, board_size):
-                valid_moves.append((x, y))
+                if not self.is_king_attacked_with_move(x, y, board, board_size, kings):
+                    valid_moves.append((x, y))
+
                 if self.can_take(x, y, board):
                     break
+
                 x += dx
                 y += dy
         
         return valid_moves
+
 
     def update_position(self, x: int, y: int) -> None:
         self.x = x
@@ -76,13 +108,14 @@ class Knight(Piece):
             (-2, -1)
         ]
     
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple]:
+    def get_moves(self, board: list[list[str]], board_size: int, kings) -> list[tuple]:
         valid_moves = []
         for dx, dy in self.moves:
             x = self.x + dx
             y = self.y + dy
             if self.is_valid(x, y, board, board_size):
-                valid_moves.append((x, y))
+                if not self.is_king_attacked_with_move(x, y, board, board_size, kings):
+                    valid_moves.append((x, y))
 
         return valid_moves
 
@@ -119,10 +152,29 @@ class King(Piece):
         super().__init__(color, piece_notation, image_id, x, y)
         self.init_position = True
         self.moves = [(1, 1), (1, -1), (1, 0), (0, 1), (0, -1), (-1, -1), (-1, 0), (-1, 1)]
+        self.attacked_by = None
 
-    def can_take(self, x: int, y: int, board: list[list[str]]) -> bool:
-        # if protected false
-        return super().can_take(x, y, board)
+
+    def get_valid_moves(self, chessboard) -> bool:
+        # oposite color
+        moves = self.get_moves(chessboard.current_board, chessboard.height)
+        pieces = chessboard.white_pieces if self.color == BLACK else chessboard.black_pieces
+
+        for piece in pieces:
+            if isinstance(piece, Pawn):
+                protected = piece.get_taking_squares(chessboard.current_board, 
+                                                     chessboard.height,
+                                                     chessboard.kings)
+            else:
+                protected = piece.get_moves(chessboard.current_board,
+                                            chessboard.height, 
+                                            chessboard.kings)
+
+            for move in moves:
+                if move in protected:
+                    moves.remove(move)
+
+        return moves
 
     def castling_moves(self, board: list[list[str]]) -> list[tuple]:
         castling_moves = []
@@ -139,7 +191,19 @@ class King(Piece):
 
         return castling_moves
 
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple] | None:
+    def is_valid(self, x: int, y: int, board: list[list[str]], board_size: int) -> bool:
+        if not 0 <= x < board_size or not 0 <= y < board_size:
+            return False
+
+        if board[x][y] == ".":
+            return True
+
+        if self.can_take(x, y, board):
+            return True
+
+        return False
+
+    def get_moves(self, board: list[list[str]], board_size: int, kings=None) -> list[tuple] | None:
         valid_moves = []
         valid_moves.extend(self.castling_moves(board))
 
@@ -167,22 +231,32 @@ class Pawn(Piece):
 
         return False
 
-    def get_moves(self, board: list[list[str]], board_size: int) -> list[tuple]:
+    def get_taking_squares(self, board: list[list[str]], board_size: int, kings):
+        valid_moves = []
+        take_moves = [(1, -1), (1, 1)] if self.color == BLACK else [(-1, -1), (-1, 1)]
+        for dx, dy in take_moves:
+            if 0 <= self.x + dx < board_size and 0 <= self.y + dy < board_size:
+                if self.can_take(self.x + dx, self.y + dy, board):
+                    if not self.is_king_attacked_with_move(self.x + dx, self.y + dy, board, board_size, kings):
+                        valid_moves.append((self.x + dx, self.y + dy))
+
+
+        return valid_moves
+
+    def get_moves(self, board: list[list[str]], board_size: int, kings) -> list[tuple]:
         valid_moves = []
         if self.is_valid(self.x + self.moves[0][0], self.y, board, board_size):
-            valid_moves.append((self.x + self.moves[0][0], self.y))
+            if not self.is_king_attacked_with_move(self.x + self.moves[0][0], self.y, board, board_size, kings):
+                valid_moves.append((self.x + self.moves[0][0], self.y))
 
         if self.init_position:
             if len(valid_moves) >= 1:
                 x = self.x + self.moves[1][0]
                 y = self.y + self.moves[1][1]
                 if self.is_valid(x, y, board, board_size):
-                    valid_moves.append((x, y))
+                    if not self.is_king_attacked_with_move(x, y, board, board_size, kings):
+                        valid_moves.append((x, y))
 
-        take_moves = [(1, -1), (1, 1)] if self.color == BLACK else [(-1, -1), (-1, 1)]
-        for dx, dy in take_moves:
-            if 0 <= self.x + dx < board_size and 0 <= self.y + dy < board_size:
-                if self.can_take(self.x + dx, self.y + dy, board):
-                    valid_moves.append((self.x + dx, self.y + dy))
+        valid_moves.extend(self.get_taking_squares(board, board_size, kings))
 
         return valid_moves
